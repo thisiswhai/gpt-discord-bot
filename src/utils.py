@@ -1,18 +1,36 @@
+from src.constants import MAX_CHARS_PER_REPLY_MSG, INACTIVATE_THREAD_PREFIX
+import discord
+from typing import Optional, List
+from discord import Message as DiscordMessage
+from src.base import Message
 from src.constants import (
     ALLOWED_SERVER_IDS,
+    BOT_NAME,
 )
 import logging
 
 logger = logging.getLogger(__name__)
-from src.base import Message
-from discord import Message as DiscordMessage
-from typing import Optional, List
-import discord
-
-from src.constants import MAX_CHARS_PER_REPLY_MSG, INACTIVATE_THREAD_PREFIX
 
 
-def discord_message_to_message(message: DiscordMessage) -> Optional[Message]:
+def get_message(user: str, text: str) -> Message:
+    if user == 'system':
+        role = 'system'
+        content = text
+    elif user == BOT_NAME:
+        role = 'assistant'
+        content = text
+    else:
+        role = 'user'
+        content = user + ': ' + text
+    return Message(role=role, content=content)
+
+
+async def get_member(guild: discord.Guild, user_id: int) -> Optional[discord.Member]:
+    member = await guild.fetch_member(user_id)
+    return member
+
+
+async def discord_message_to_message(message: DiscordMessage) -> Optional[Message]:
     if (
         message.type == discord.MessageType.thread_starter_message
         and message.reference.cached_message
@@ -21,16 +39,21 @@ def discord_message_to_message(message: DiscordMessage) -> Optional[Message]:
     ):
         field = message.reference.cached_message.embeds[0].fields[0]
         if field.value:
-            return Message(user=field.name, text=field.value)
+            return get_message(user=field.name, text=field.value)
     else:
         if message.content:
-            return Message(user=message.author.name, text=message.content)
+            # get member instead of user to get display name
+            if isinstance(message.author, discord.user.User):
+                member = await get_member(message.guild, message.author.id)
+            else:
+                member = message.author
+            return get_message(user=member.display_name, text=message.content)
     return None
 
 
 def split_into_shorter_messages(message: str) -> List[str]:
     return [
-        message[i : i + MAX_CHARS_PER_REPLY_MSG]
+        message[i: i + MAX_CHARS_PER_REPLY_MSG]
         for i in range(0, len(message), MAX_CHARS_PER_REPLY_MSG)
     ]
 
@@ -46,15 +69,15 @@ def is_last_message_stale(
     )
 
 
-async def close_thread(thread: discord.Thread):
-    await thread.edit(name=INACTIVATE_THREAD_PREFIX)
-    await thread.send(
-        embed=discord.Embed(
-            description="**Thread closed** - Context limit reached, closing...",
-            color=discord.Color.blue(),
-        )
-    )
-    await thread.edit(archived=True, locked=True)
+# async def close_thread(thread: discord.Thread):
+#     await thread.edit(name=INACTIVATE_THREAD_PREFIX)
+#     await thread.send(
+#         embed=discord.Embed(
+#             description="**Thread closed** - Context limit reached, closing...",
+#             color=discord.Color.blue(),
+#         )
+#     )
+#     await thread.edit(archived=True, locked=True)
 
 
 def should_block(guild: Optional[discord.Guild]) -> bool:
