@@ -62,6 +62,7 @@ async def on_ready():
 @discord.app_commands.checks.bot_has_permissions(send_messages=True)
 @discord.app_commands.checks.bot_has_permissions(view_channel=True)
 @discord.app_commands.checks.bot_has_permissions(manage_threads=True)
+@discord.app_commands.commands.guild_only()
 async def chat_command(int: discord.Interaction, message: str):
     try:
         # defer the response to avoid the 3 second timeout
@@ -187,6 +188,9 @@ async def on_message(message: DiscordMessage):
             # ignore messages unless bot is mentioned
             if client.user not in message.mentions:
                 return
+        elif isinstance(channel, discord.DMChannel):
+            # DMs are ok too
+            pass
         else:
             # ignore other channels
             return
@@ -234,19 +238,19 @@ async def on_message(message: DiscordMessage):
                 )
             )
 
-        # wait a bit in case user has more messages
-        if SECONDS_DELAY_RECEIVING_MSG > 0:
-            await asyncio.sleep(SECONDS_DELAY_RECEIVING_MSG)
-            if is_last_message_stale(
-                interaction_message=message,
-                last_message=channel.last_message,
-                bot_id=client.user.id,
-            ):
-                # there is another message, so ignore this one
-                return
+        # # wait a bit in case user has more messages
+        # if SECONDS_DELAY_RECEIVING_MSG > 0:
+        #     await asyncio.sleep(SECONDS_DELAY_RECEIVING_MSG)
+        #     if is_last_message_stale(
+        #         interaction_message=message,
+        #         last_message=channel.last_message,
+        #         bot_id=client.user.id,
+        #     ):
+        #         # there is another message, so ignore this one
+        #         return
 
         logger.info(
-            f"Channel message to process - {message.author}: {message.content[:50]} - {channel.name} {channel.jump_url}"
+            f"Channel message to process - {message.author}: {message.content[:50]}"
         )
 
         channel_messages = [
@@ -262,13 +266,13 @@ async def on_message(message: DiscordMessage):
                 messages=channel_messages, user=message.author
             )
 
-        if is_last_message_stale(
-            interaction_message=message,
-            last_message=channel.last_message,
-            bot_id=client.user.id,
-        ):
-            # there is another message and its not from us, so ignore this response
-            return
+        # if is_last_message_stale(
+        #     interaction_message=message,
+        #     last_message=channel.last_message,
+        #     bot_id=client.user.id,
+        # ):
+        #     # there is another message and its not from us, so ignore this response
+        #     return
 
         # send response
         await process_response(

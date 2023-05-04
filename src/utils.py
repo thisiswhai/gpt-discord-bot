@@ -43,7 +43,7 @@ async def discord_message_to_message(message: DiscordMessage) -> Optional[Messag
     else:
         if message.content:
             # get member instead of user to get display name
-            if isinstance(message.author, discord.user.User):
+            if isinstance(message.author, discord.user.User) and message.guild:
                 member = await get_member(message.guild, message.author.id)
             else:
                 member = message.author
@@ -82,9 +82,10 @@ def is_last_message_stale(
 
 def should_block(guild: Optional[discord.Guild]) -> bool:
     if guild is None:
-        # dm's not supported
-        logger.info(f"DM not supported")
-        return True
+        # # dm's not supported
+        # logger.info(f"DM not supported")
+        # return True
+        return False
 
     if guild.id and guild.id not in ALLOWED_SERVER_IDS:
         # not allowed in this server
